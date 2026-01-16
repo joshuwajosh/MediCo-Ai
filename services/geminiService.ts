@@ -23,55 +23,87 @@ OPERATIONAL STEPS:
 You must return the response in the specified JSON format.`;
 
 export async function analyzeClinicalNote(note: string): Promise<CodingAnalysis> {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  
-  const response = await ai.models.generateContent({
-    model: "gemini-3-pro-preview",
-    contents: note,
-    config: {
-      systemInstruction: SYSTEM_INSTRUCTION,
-      thinkingConfig: { thinkingBudget: 8000 },
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.OBJECT,
-        properties: {
-          summary: { type: Type.STRING },
-          codes: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                entity: { type: Type.STRING },
-                type: { type: Type.STRING },
-                code: { type: Type.STRING },
-                description: { type: Type.STRING },
-                confidence_score: { type: Type.STRING },
-                evidence: { type: Type.STRING },
-                hierarchical_logic: { 
-                  type: Type.ARRAY,
-                  items: { type: Type.STRING },
-                  description: "A list of logical steps taken to refine the code."
+  let response;
+  try {
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    response = await ai.models.generateContent({
+      model: "gemini-3-pro-preview",
+      contents: note,
+      config: {
+        systemInstruction: SYSTEM_INSTRUCTION,
+        thinkingConfig: { thinkingBudget: 8000 },
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            summary: { type: Type.STRING },
+            codes: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  entity: { type: Type.STRING },
+                  type: { type: Type.STRING },
+                  code: { type: Type.STRING },
+                  description: { type: Type.STRING },
+                  confidence_score: { type: Type.STRING },
+                  evidence: { type: Type.STRING },
+                  hierarchical_logic: { 
+                    type: Type.ARRAY,
+                    items: { type: Type.STRING },
+                    description: "A list of logical steps taken to refine the code."
+                  },
                 },
+                required: ["entity", "type", "code", "description", "confidence_score", "evidence", "hierarchical_logic"],
               },
-              required: ["entity", "type", "code", "description", "confidence_score", "evidence", "hierarchical_logic"],
+            },
+            queries_for_physician: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING },
             },
           },
-          queries_for_physician: {
-            type: Type.ARRAY,
-            items: { type: Type.STRING },
-          },
+          required: ["summary", "codes", "queries_for_physician"],
         },
-        required: ["summary", "codes", "queries_for_physician"],
       },
-    },
-  });
-
-  if (!response.text) {
-    throw new Error("No response received from the coding engine.");
+    });
+  } catch (apiError: any) {
+    const message = apiError?.message || "";
+    if (message.includes("API_KEY_INVALID") || message.includes("403")) {
+      throw new Error("Authentication failed. Please verify your Gemini API key configuration.");
+    } else if (message.includes("quota") || message.includes("429")) {
+      throw new Error("Rate limit exceeded. Please wait a moment before trying again.");
+    } else if (message.includes("network") || message.includes("fetch")) {
+      throw new Error("Network connectivity issue. Please check your internet connection.");
+    }
+    throw new Error(`Coding Engine Error: ${message || "Failed to connect to Gemini API"}`);
   }
 
-  const result = JSON.parse(response.text) as CodingAnalysis;
+  if (!response?.text) {
+    throw new Error("The coding engine returned an empty response. This might happen if the input clinical note is too short or contains restricted content.");
+  }
+
+  let result: CodingAnalysis;
+  try {
+    const text = response.text.trim();
+    // Occasionally LLMs might wrap JSON in backticks despite instructions
+    const jsonStr = text.startsWith("```") ? text.replace(/^```json|```$/g, "").trim() : text;
+    result = JSON.parse(jsonStr) as CodingAnalysis;
+  } catch (parseError) {
+    throw new Error("Failed to parse the coding results. The engine produced an invalid data format. Please try re-running the audit.");
+  }
+
+  // Schema Validation check
+  if (!result.summary || !Array.isArray(result.codes)) {
+    throw new Error("Unexpected response structure: The analysis report is missing critical diagnostic or procedure data.");
+  }
+
   // Inject unique IDs for UI tracking
-  result.codes = result.codes.map((c, i) => ({ ...c, id: `code-${Date.now()}-${i}` }));
+  result.codes = result.codes.map((c, i) => ({ 
+    ...c, 
+    id: `code-${Date.now()}-${i}`,
+    // Ensure nested logic is an array even if model failed schema slightly
+    hierarchical_logic: Array.isArray(c.hierarchical_logic) ? c.hierarchical_logic : [String(c.hierarchical_logic)]
+  }));
+  
   return result;
 }
