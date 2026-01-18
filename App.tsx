@@ -23,18 +23,21 @@ const App: React.FC = () => {
   }, [state.hoveredCodeId, state.result]);
 
   const handleAnalyze = async () => {
-    if (!state.clinicalNote.trim()) return;
+    if (!state.clinicalNote.trim()) {
+      setState(prev => ({ ...prev, error: "Please enter or upload a clinical note to begin the audit." }));
+      return;
+    }
 
     setState(prev => ({ ...prev, isAnalyzing: true, error: null, result: null, auditTrail: [] }));
     try {
       const result = await analyzeClinicalNote(state.clinicalNote);
       setState(prev => ({ ...prev, result, isAnalyzing: false }));
     } catch (err: any) {
-      console.error(err);
+      console.error("Analysis failed:", err);
       setState(prev => ({ 
         ...prev, 
         isAnalyzing: false, 
-        error: err.message || "An unexpected error occurred during analysis. Please check your API key and input."
+        error: err.message || "An unexpected system error occurred. Our coding engine might be temporarily unavailable."
       }));
     }
   };
@@ -81,10 +84,18 @@ const App: React.FC = () => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    if (!file.name.endsWith('.txt')) {
+      setState(prev => ({ ...prev, error: "Invalid file type. Please upload a plain text (.txt) clinical note." }));
+      return;
+    }
+
     const reader = new FileReader();
     reader.onload = (event) => {
       const content = event.target?.result as string;
-      setState(prev => ({ ...prev, clinicalNote: content }));
+      setState(prev => ({ ...prev, clinicalNote: content, error: null }));
+    };
+    reader.onerror = () => {
+      setState(prev => ({ ...prev, error: "Failed to read the file. Please check file permissions." }));
     };
     reader.readAsText(file);
   };
@@ -125,14 +136,16 @@ const App: React.FC = () => {
               ) : (
                 <textarea
                   value={state.clinicalNote}
-                  onChange={(e) => setState(prev => ({ ...prev, clinicalNote: e.target.value }))}
+                  onChange={(e) => setState(prev => ({ ...prev, clinicalNote: e.target.value, error: null }))}
                   placeholder="Chief Complaint: 56 y/o male presents with..."
-                  className="w-full h-[400px] p-6 rounded-2xl border border-slate-200 shadow-sm focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 transition-all text-slate-800 leading-relaxed resize-none font-medium text-base"
+                  className={`w-full h-[400px] p-6 rounded-2xl border shadow-sm focus:ring-4 transition-all text-slate-800 leading-relaxed resize-none font-medium text-base ${
+                    state.error ? 'border-rose-300 ring-rose-50' : 'border-slate-200 focus:ring-indigo-100 focus:border-indigo-500'
+                  }`}
                 />
               )}
               
               <div className="absolute top-4 right-4 flex gap-2">
-                {state.clinicalNote && !state.isAnalyzing && (
+                {(state.clinicalNote || state.result) && !state.isAnalyzing && (
                   <button 
                     onClick={clearNote}
                     className="p-2 bg-white/80 backdrop-blur hover:bg-white rounded-lg text-slate-400 hover:text-rose-500 transition-colors shadow-sm border border-slate-100"
@@ -188,13 +201,23 @@ const App: React.FC = () => {
               </div>
             )}
 
-            <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
+            <div className={`rounded-xl p-4 border transition-colors ${state.error ? 'bg-rose-50 border-rose-100' : 'bg-blue-50 border-blue-100'}`}>
               <div className="flex gap-3">
-                <svg className="w-5 h-5 text-blue-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <svg className={`w-5 h-5 shrink-0 ${state.error ? 'text-rose-500' : 'text-blue-500'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  {state.error ? (
+                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  ) : (
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  )}
                 </svg>
-                <div className="text-xs text-blue-800 leading-relaxed">
-                  <span className="font-bold">Pro Tip:</span> {state.result ? "Hover over code cards in the results to highlight exact clinical evidence in the note above." : "For best results, include physical exam findings, assessments, and plan sections."}
+                <div className={`text-xs leading-relaxed ${state.error ? 'text-rose-800' : 'text-blue-800'}`}>
+                  {state.error ? (
+                    <span className="font-bold">Error Detected: {state.error}</span>
+                  ) : (
+                    <>
+                      <span className="font-bold">Pro Tip:</span> {state.result ? "Hover over code cards in the results to highlight exact clinical evidence in the note above." : "For best results, include physical exam findings, assessments, and plan sections."}
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -212,26 +235,34 @@ const App: React.FC = () => {
                     </svg>
                   </div>
                 </div>
-                <div className="text-center">
+                <div className="text-center px-6">
                   <h3 className="text-lg font-bold text-slate-900">Identifying Clinical Entities</h3>
-                  <p className="text-slate-500 text-sm">Cross-referencing ICD-10 and CPT databases...</p>
+                  <p className="text-slate-500 text-sm max-w-xs mx-auto">Gemini 3 Pro is traversing the medical hierarchy to find the most specific codes...</p>
                 </div>
               </div>
             ) : state.error ? (
-              <div className="p-8 bg-rose-50 border border-rose-100 rounded-3xl text-center">
+              <div className="p-8 bg-rose-50 border border-rose-100 rounded-3xl text-center shadow-sm">
                 <div className="w-16 h-16 bg-rose-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <svg className="w-8 h-8 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                   </svg>
                 </div>
-                <h3 className="text-lg font-bold text-rose-900 mb-2">Analysis Failed</h3>
-                <p className="text-rose-700 text-sm mb-6 max-w-md mx-auto">{state.error}</p>
-                <button 
-                  onClick={handleAnalyze}
-                  className="px-6 py-2 bg-rose-600 text-white rounded-lg font-bold text-sm hover:bg-rose-700 transition-colors"
-                >
-                  Try Again
-                </button>
+                <h3 className="text-lg font-bold text-rose-900 mb-2">Audit Interrupted</h3>
+                <p className="text-rose-700 text-sm mb-6 max-w-md mx-auto leading-relaxed">{state.error}</p>
+                <div className="flex justify-center gap-3">
+                  <button 
+                    onClick={handleAnalyze}
+                    className="px-6 py-2 bg-rose-600 text-white rounded-lg font-bold text-sm hover:bg-rose-700 transition-colors shadow-md shadow-rose-100"
+                  >
+                    Retry Audit
+                  </button>
+                  <button 
+                    onClick={clearNote}
+                    className="px-6 py-2 bg-white border border-rose-200 text-rose-700 rounded-lg font-bold text-sm hover:bg-rose-50 transition-colors"
+                  >
+                    Clear Note
+                  </button>
+                </div>
               </div>
             ) : state.result ? (
               <ResultView 
@@ -249,14 +280,14 @@ const App: React.FC = () => {
                   </svg>
                 </div>
                 <h3 className="text-xl font-bold text-slate-400 mb-2">Awaiting Documentation</h3>
-                <p className="text-slate-400 text-sm max-w-xs mx-auto">Results will appear here once the analysis engine processes your clinical note.</p>
+                <p className="text-slate-400 text-sm max-w-xs mx-auto">Upload a clinical note to see the AI's hierarchical coding suggestions and audit trails.</p>
               </div>
             )}
           </div>
         </div>
       </main>
 
-      <footer className="py-6 border-t border-slate-100 bg-white">
+      <footer className="py-6 border-t border-slate-100 bg-white mt-auto">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row justify-between items-center gap-4">
           <p className="text-xs text-slate-400 font-medium tracking-tight">
             © 2024 MEDI-CODE AI. FOR PROFESSIONAL CODING ASSISTANCE ONLY.
