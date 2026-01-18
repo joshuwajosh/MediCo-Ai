@@ -186,7 +186,7 @@ const ResultView: React.FC<ResultViewProps> = ({ analysis, auditTrail, onUpdateC
       </section>
 
       {/* Physician Queries */}
-      {analysis.queries_for_physician.length > 0 && (
+      {analysis.queries_for_physician?.length > 0 && (
         <section className="bg-rose-50 rounded-2xl border border-rose-100 p-8 shadow-sm">
           <div className="flex items-center gap-3 mb-6">
             <div className="p-2 bg-rose-100 rounded-lg">
