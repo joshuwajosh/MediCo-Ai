@@ -13,13 +13,13 @@ const Header: React.FC = () => {
           </div>
           <div>
             <h1 className="text-xl font-bold text-slate-900 tracking-tight">MediCode <span className="text-indigo-600">AI Pro</span></h1>
-            <p className="text-xs text-slate-500 font-medium uppercase tracking-wider">Senior CPC Assistant</p>
+            <p className="text-xs text-slate-500 font-medium uppercase tracking-wider">Certified CPC Assistant</p>
           </div>
         </div>
         <div className="hidden md:flex items-center gap-4 text-sm font-medium text-slate-600">
-          <span className="px-3 py-1 bg-green-50 text-green-700 rounded-full border border-green-100 flex items-center gap-1.5">
-            <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-            Gemini 3 Pro Engine
+          <span className="px-3 py-1 bg-indigo-50 text-indigo-700 rounded-full border border-indigo-100 flex items-center gap-1.5">
+            <span className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse"></span>
+            Gemini 3 Flash Turbo (Speed Optimized)
           </span>
         </div>
       </div>

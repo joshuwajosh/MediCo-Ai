@@ -24,7 +24,7 @@ const App: React.FC = () => {
 
   const handleAnalyze = async () => {
     if (!state.clinicalNote.trim()) {
-      setState(prev => ({ ...prev, error: "Please enter or upload a clinical note to begin the audit." }));
+      setState(prev => ({ ...prev, error: "Submission Error: Please enter or upload clinical documentation to begin the audit process." }));
       return;
     }
 
@@ -37,7 +37,7 @@ const App: React.FC = () => {
       setState(prev => ({ 
         ...prev, 
         isAnalyzing: false, 
-        error: err.message || "An unexpected system error occurred. Our coding engine might be temporarily unavailable."
+        error: err.message || "An unexpected system error occurred. The audit engine could not complete the hierarchical refinement."
       }));
     }
   };
@@ -85,7 +85,7 @@ const App: React.FC = () => {
     if (!file) return;
 
     if (!file.name.endsWith('.txt')) {
-      setState(prev => ({ ...prev, error: "Invalid file type. Please upload a plain text (.txt) clinical note." }));
+      setState(prev => ({ ...prev, error: "Format Error: MediCode AI Pro currently only supports .txt documentation for raw processing." }));
       return;
     }
 
@@ -95,7 +95,7 @@ const App: React.FC = () => {
       setState(prev => ({ ...prev, clinicalNote: content, error: null }));
     };
     reader.onerror = () => {
-      setState(prev => ({ ...prev, error: "Failed to read the file. Please check file permissions." }));
+      setState(prev => ({ ...prev, error: "File System Error: Unable to read the clinical file. Please check permissions." }));
     };
     reader.readAsText(file);
   };
@@ -126,7 +126,7 @@ const App: React.FC = () => {
             <div className="space-y-1">
               <h2 className="text-2xl font-bold text-slate-900">Clinical Documentation</h2>
               <p className="text-slate-500 text-sm">
-                {state.result ? "Review clinical evidence matches highlighted below." : "Paste the provider's notes below or upload a .txt file."}
+                {state.result ? "Review clinical evidence matches highlighted below." : "Paste provider notes or upload a clinical file."}
               </p>
             </div>
 
@@ -137,7 +137,7 @@ const App: React.FC = () => {
                 <textarea
                   value={state.clinicalNote}
                   onChange={(e) => setState(prev => ({ ...prev, clinicalNote: e.target.value, error: null }))}
-                  placeholder="Chief Complaint: 56 y/o male presents with..."
+                  placeholder="Paste clinical note here..."
                   className={`w-full h-[400px] p-6 rounded-2xl border shadow-sm focus:ring-4 transition-all text-slate-800 leading-relaxed resize-none font-medium text-base ${
                     state.error ? 'border-rose-300 ring-rose-50' : 'border-slate-200 focus:ring-indigo-100 focus:border-indigo-500'
                   }`}
@@ -187,14 +187,14 @@ const App: React.FC = () => {
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                       </svg>
-                      Analyzing...
+                      Auditing...
                     </>
                   ) : (
                     <>
                       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                       </svg>
-                      Run Coding Audit
+                      Run CPC Audit
                     </>
                   )}
                 </button>
@@ -212,10 +212,10 @@ const App: React.FC = () => {
                 </svg>
                 <div className={`text-xs leading-relaxed ${state.error ? 'text-rose-800' : 'text-blue-800'}`}>
                   {state.error ? (
-                    <span className="font-bold">Error Detected: {state.error}</span>
+                    <span className="font-bold">Clinical Audit Interrupted: {state.error}</span>
                   ) : (
                     <>
-                      <span className="font-bold">Pro Tip:</span> {state.result ? "Hover over code cards in the results to highlight exact clinical evidence in the note above." : "For best results, include physical exam findings, assessments, and plan sections."}
+                      <span className="font-bold">CPC Instruction:</span> {state.result ? "Hover over code cards to highlight exactly where logic was extracted from." : "Ensure notes include Laterality, Acuity, and Site for highest code specificity."}
                     </>
                   )}
                 </div>
@@ -236,8 +236,8 @@ const App: React.FC = () => {
                   </div>
                 </div>
                 <div className="text-center px-6">
-                  <h3 className="text-lg font-bold text-slate-900">Identifying Clinical Entities</h3>
-                  <p className="text-slate-500 text-sm max-w-xs mx-auto">Gemini 3 Pro is traversing the medical hierarchy to find the most specific codes...</p>
+                  <h3 className="text-lg font-bold text-slate-900">Auditing Hierarchy</h3>
+                  <p className="text-slate-500 text-sm max-w-xs mx-auto">Identifying entities and applying ICD-10/CPT core rule sets for maximum specificity...</p>
                 </div>
               </div>
             ) : state.error ? (
@@ -247,20 +247,20 @@ const App: React.FC = () => {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                   </svg>
                 </div>
-                <h3 className="text-lg font-bold text-rose-900 mb-2">Audit Interrupted</h3>
+                <h3 className="text-lg font-bold text-rose-900 mb-2">Clinical Audit Failed</h3>
                 <p className="text-rose-700 text-sm mb-6 max-w-md mx-auto leading-relaxed">{state.error}</p>
                 <div className="flex justify-center gap-3">
                   <button 
                     onClick={handleAnalyze}
                     className="px-6 py-2 bg-rose-600 text-white rounded-lg font-bold text-sm hover:bg-rose-700 transition-colors shadow-md shadow-rose-100"
                   >
-                    Retry Audit
+                    Attempt Recovery
                   </button>
                   <button 
                     onClick={clearNote}
                     className="px-6 py-2 bg-white border border-rose-200 text-rose-700 rounded-lg font-bold text-sm hover:bg-rose-50 transition-colors"
                   >
-                    Clear Note
+                    Discard & Reset
                   </button>
                 </div>
               </div>
@@ -279,8 +279,8 @@ const App: React.FC = () => {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
                 </div>
-                <h3 className="text-xl font-bold text-slate-400 mb-2">Awaiting Documentation</h3>
-                <p className="text-slate-400 text-sm max-w-xs mx-auto">Upload a clinical note to see the AI's hierarchical coding suggestions and audit trails.</p>
+                <h3 className="text-xl font-bold text-slate-400 mb-2">Audit Queue Empty</h3>
+                <p className="text-slate-400 text-sm max-w-xs mx-auto">Upload clinical documentation to generate high-precision hierarchical coding suggestions.</p>
               </div>
             )}
           </div>
@@ -290,12 +290,12 @@ const App: React.FC = () => {
       <footer className="py-6 border-t border-slate-100 bg-white mt-auto">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row justify-between items-center gap-4">
           <p className="text-xs text-slate-400 font-medium tracking-tight">
-            © 2024 MEDI-CODE AI. FOR PROFESSIONAL CODING ASSISTANCE ONLY.
+            © 2024 MEDI-CODE AI. FOR PROFESSIONAL CODING AUDIT ASSISTANCE ONLY.
           </p>
           <div className="flex gap-6">
             <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">ICD-10-CM</span>
             <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">CPT-4</span>
-            <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">HIPAA READY</span>
+            <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">HIPAA COMPLIANT</span>
           </div>
         </div>
       </footer>
